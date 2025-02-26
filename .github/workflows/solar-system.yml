@@ -13,6 +13,15 @@ env:
 jobs:
     unit-testing:
         name: Unit Testing
+        services:
+          mongo-db:
+            image: siddharth67/mongo-db:non-prod
+            ports:
+            - 27017:27017
+        env:
+          MONGO_URI: 'mongodb://localhost:27017/superData'
+          MONGO_USERNAME: non-prod-user
+          MONGO_PASSWORD: non-prod-password
         strategy:
           matrix:
             nodejs_version: [20]
@@ -86,6 +95,8 @@ jobs:
 
     docker:
       name: Containerisation
+      permissions: # Added this as owner inherited the correct permissiosn to push packages but needed for others
+        packages: write
       needs:
       - unit-testing
       - code-coverage
