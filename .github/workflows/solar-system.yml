@@ -116,7 +116,7 @@ jobs:
             -e MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             ${{ vars.DOCKERHUB_USERNAME}}/solar-system:${{ github.sha }}
 
-          export IP=$(docker inspect solar-system-app -f '{{range .NetworkSettings.Networks}}{{.IPAdress}}{{end}}')
+          export IP=$(docker inspect solar-system-app -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
           echo $IP
 
           echo Testing Image URI using wget
