@@ -194,3 +194,23 @@ jobs:
         - name: List pods in the cluster
           run: kubectl get nodes
 
+        - name: Save Nginx Ingress Controller IP as a GITHUB Environment variable
+          run: |
+            echo "INGRESS_IP=$(kubectl -n ingress-nginx ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0]}")" >> $GITHUB_ENV
+
+        - name: Replace tokens in manifest files
+          uses: cschleiden/replace-tokens@v1
+          with:
+            tokenPrefix: '_{_'
+            tokenSuffix: '_}_'
+            files: '["kubernetes/development/*.yaml"]'
+          env:
+            NAMESPACE: ${{ vars.NAMESPACE }}
+            REPLICAS: ${{ vars.REPLICAS }}
+            IMAGE: ${{ vars.DOCKERHUB_USERNAME }}
+            INGRESS_IP: $INGRESS_IP
+
+        - name: Check files
+          run: |
+            cat kubernetes/development/*.yaml
+
