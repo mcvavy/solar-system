@@ -162,6 +162,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha}}
 
     dev-deploy:
+      if: contains(github.ref, 'feature/')
       needs: docker
       runs-on: ubuntu-latest
       environment:
@@ -247,6 +248,7 @@ jobs:
 
     # # Post deployiment testing. Github action can reach URL as it's not public facing          
     # dev-integration-testing:
+    #   if: contains(github.ref, 'feature/')
     #   name: Dev integration testing
     #   needs: dev-deploy
     #   runs-on: ubuntu-latest
@@ -260,7 +262,8 @@ jobs:
     #         curl https://$URL/live -s -k | jq -r .status | grep -i live
 
     prod-deploy:
-      needs: dev-deploy
+      if: github.ref == 'refs/head/main'
+      needs: docker
       runs-on: ubuntu-latest
       environment:
         name: production
@@ -345,6 +348,7 @@ jobs:
 
     # # Post production testing. Github action can reach URL as it's not public facing          
     # prod-integration-testing:
+    #   if: github.ref == 'refs/head/main'
     #   name: Dev integration testing
     #   needs: prod-deploy
     #   runs-on: ubuntu-latest
