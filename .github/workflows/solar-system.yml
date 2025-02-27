@@ -161,4 +161,36 @@ jobs:
             ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha}}
             ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha}}
 
+    dev-deploy:
+      needs: docker
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+
+        # Set up kubeconfig from the GitHub Secret
+        - name: Get OIDC Token from Keycloak
+          run: |
+              TOKEN=$(curl -X POST \
+              ${{ secrets.KEYCLOAK_ISSUER_URL }}/protocol/openid-connect/token \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -d "client_id=github-actions" \
+              -d "client_secret=${{ secrets.KEYCLOAK_CLIENT_SECRET }}" \
+              -d "grant_type=client_credentials" | jq -r '.access_token')
+              echo "generated token is: $TOKEN"
+              echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
+          
+        - name: Authenticate to Kubernetes
+          run: |
+              kubectl config set-credentials github-actions --token=$OIDC_TOKEN
+              kubectl config set-cluster labgrid --server=https://k8s-server.labgrid.net
+              kubectl config set-context labgrid --cluster=labgrid --user=github-actions
+              kubectl config use-context labgrid
+
+        # Verify kubectl is installed and check version
+        - name: Check kubectl version
+          run: kubectl version --client
+
+        - name: List pods in the cluster
+          run: kubectl get nodes
 
