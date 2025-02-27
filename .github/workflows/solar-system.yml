@@ -224,7 +224,7 @@ jobs:
           run: |
             if ! kubectl get namespace ${{ vars.NAMESPACE }} > /dev/null 2>&1; then
               echo "Namespace ${{ vars.NAMESPACE }} does not exist. Creating..."
-              kubectl create namespace "${NAMESPACE}"
+              kubectl create namespace ${{ vars.NAMESPACE }}
             else
               echo "Namespace ${NAMESPACE} already exists."
             fi
@@ -324,7 +324,7 @@ jobs:
           run: |
             if ! kubectl get namespace ${{ vars.NAMESPACE }} > /dev/null 2>&1; then
               echo "Namespace ${{ vars.NAMESPACE }} does not exist. Creating..."
-              kubectl create namespace "${NAMESPACE}"
+              kubectl create namespace ${{ vars.NAMESPACE }}
             else
               echo "Namespace ${NAMESPACE} already exists."
             fi
