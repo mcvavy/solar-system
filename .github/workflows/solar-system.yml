@@ -165,10 +165,10 @@ jobs:
       if: contains(github.ref, 'feature/')
       needs: docker
       uses: ./.github/workflows/deployment_workflow.yml
-      secrets: inherit
-        # keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
-        # keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
-        # mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
+      secrets:
+        keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+        keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
+        mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
 
     # # Post deployiment testing. Github action can reach URL as it's not public facing          
     # dev-integration-testing:
@@ -189,6 +189,11 @@ jobs:
       if: ${{ github.ref == 'refs/heads/main' }}
       needs: docker
       uses: ./.github/workflows/deployment_workflow.yml
+      secrets:
+        keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+        keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
+        mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
+
 
     # # Post production testing. Github action can reach URL as it's not public facing          
     # prod-integration-testing:
