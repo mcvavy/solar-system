@@ -2,13 +2,13 @@ name: Deployment - Resusable workflow
 
 on:
     workflow_call:
-        secrets:
-          keycloakClientSecret:
-            required: true
-          keycloakIssuerUrl:
-                required: true
-          mongodbPassword:
-            required: true
+      secrets:
+        keycloakClientSecret:
+          required: true
+        keycloakIssuerUrl:
+          required: true
+        mongodbPassword:
+          required: true
 
 jobs:
     reuse-deploy:
