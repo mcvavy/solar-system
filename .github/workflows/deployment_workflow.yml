@@ -1,7 +1,14 @@
 name: Deployment - Resusable workflow
 
 on:
-    workflow_call: 
+    workflow_call:
+        secrets:
+          keycloakClientSecret:
+            required: true
+          keycloakIssuerUrl:
+                required: true
+          mongodbPassword:
+            required: true
 
 jobs:
     reuse-deploy:
@@ -19,10 +26,10 @@ jobs:
           - name: Get OIDC Token from Keycloak
             run: |
                 TOKEN=$(curl -X POST \
-                ${{ secrets.KEYCLOAK_ISSUER_URL }}/protocol/openid-connect/token \
+                ${{ secrets.keycloakIssuerUrl }}/protocol/openid-connect/token \
                 -H "Content-Type: application/x-www-form-urlencoded" \
                 -d "client_id=github-actions" \
-                -d "client_secret=${{ secrets.KEYCLOAK_CLIENT_SECRET }}" \
+                -d "client_secret=${{ secrets.keycloakClientSecret }}" \
                 -d "grant_type=client_credentials" | jq -r '.access_token')
                 echo "generated token is: $TOKEN"
                 echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
@@ -73,7 +80,7 @@ jobs:
               kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
               --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
               --from-literal=MONGO_USERNAME=${{ env.MONGO_USERNAME }} \
-              --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+              --from-literal=MONGO_PASSWORD=${{ secrets.mongodbPassword }} \
               --save-config \
               --dry-run=client \
               -o yaml | kubectl apply -f -
