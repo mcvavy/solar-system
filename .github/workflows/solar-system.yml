@@ -141,7 +141,7 @@ jobs:
           docker images
           docker run --name solar-system-app -d \
             -p 3000:3000 \
-            -e MONGO_URI=${{env.MONGO_URI}} \
+            -e MONGO_URI=${{ env.MONGO_URI }} \
             -e MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
             -e MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             ${{ vars.DOCKERHUB_USERNAME}}/solar-system:${{ github.sha }}
@@ -169,6 +169,10 @@ jobs:
         keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
         keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
         mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
+      with:
+        mongodb-uri: ${{ vars.MONGO_URI }}
+        environment: development
+        k8s-manifest-dir: kubernetes/development/
 
     # # Post deployiment testing. Github action can reach URL as it's not public facing          
     # dev-integration-testing:
@@ -193,6 +197,10 @@ jobs:
         keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
         keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
         mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
+      with:
+        mongodb-uri: ${{ vars.MONGO_URI }}
+        environment: production
+        k8s-manifest-dir: kubernetes/production/
 
 
     # # Post production testing. Github action can reach URL as it's not public facing          
