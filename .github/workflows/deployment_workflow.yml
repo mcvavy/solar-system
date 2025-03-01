@@ -16,6 +16,9 @@ on:
           default: kubernetes/
           required: true
           type: string
+      outputs:
+        application_url:
+            value: ${{ jobs.reuse-deploy.outputs.APP_INGRESS_URL }}
       secrets:
         keycloakClientSecret:
           required: true
@@ -59,7 +62,7 @@ jobs:
           - name: Check kubectl version
             run: kubectl version --client
   
-          - name: List pods in the cluster
+          - name: List nodes in the cluster
             run: kubectl get nodes
   
           - name: Save Nginx Ingress Controller IP as a GITHUB Environment variable
