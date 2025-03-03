@@ -141,7 +141,7 @@ jobs:
           docker images
           docker run --name solar-system-app -d \
             -p 3000:3000 \
-            -e MONGO_URI=${{env.MONGO_URI}} \
+            -e MONGO_URI=${{ env.MONGO_URI }} \
             -e MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
             -e MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             ${{ vars.DOCKERHUB_USERNAME}}/solar-system:${{ github.sha }}
@@ -164,87 +164,15 @@ jobs:
     dev-deploy:
       if: contains(github.ref, 'feature/')
       needs: docker
-      runs-on: ubuntu-latest
-      environment:
-        name: development
-        url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST}}
-      outputs:
-        APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST}}
-      steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v4
-
-        # Set up kubeconfig from the GitHub Secret
-        - name: Get OIDC Token from Keycloak
-          run: |
-              TOKEN=$(curl -X POST \
-              ${{ secrets.KEYCLOAK_ISSUER_URL }}/protocol/openid-connect/token \
-              -H "Content-Type: application/x-www-form-urlencoded" \
-              -d "client_id=github-actions" \
-              -d "client_secret=${{ secrets.KEYCLOAK_CLIENT_SECRET }}" \
-              -d "grant_type=client_credentials" | jq -r '.access_token')
-              echo "generated token is: $TOKEN"
-              echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
-          
-        - name: Authenticate to Kubernetes
-          run: |
-              kubectl config set-credentials github-actions --token=$OIDC_TOKEN
-              kubectl config set-cluster labgrid --server=https://k8s-server.labgrid.net
-              kubectl config set-context labgrid --cluster=labgrid --user=github-actions
-              kubectl config use-context labgrid
-
-        # Verify kubectl is installed and check version
-        - name: Check kubectl version
-          run: kubectl version --client
-
-        - name: List pods in the cluster
-          run: kubectl get nodes
-
-        - name: Save Nginx Ingress Controller IP as a GITHUB Environment variable
-          run: |
-            echo "INGRESS_IP=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].ip}")" >> $GITHUB_ENV
-
-        - name: Replace tokens in manifest files
-          uses: cschleiden/replace-tokens@v1
-          with:
-            tokenPrefix: '_{_'
-            tokenSuffix: '_}_'
-            files: '["kubernetes/development/*.yaml"]'
-          env:
-            NAMESPACE: ${{ vars.NAMESPACE }}
-            REPLICAS: ${{ vars.REPLICAS }}
-            IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha}}
-            INGRESS_IP: ${{ env.INGRESS_IP }}
-
-        - name: Check files
-          run: |
-            cat kubernetes/development/*.yaml
-
-        - name: Create MongoDB Secret
-          run: |
-            if ! kubectl get namespace ${{ vars.NAMESPACE }} > /dev/null 2>&1; then
-              echo "Namespace ${{ vars.NAMESPACE }} does not exist. Creating..."
-              kubectl create namespace ${{ vars.NAMESPACE }}
-            else
-              echo "Namespace ${NAMESPACE} already exists."
-            fi
-
-            kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
-            --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
-            --from-literal=MONGO_USERNAME=${{ env.MONGO_USERNAME }} \
-            --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
-            --save-config \
-            --dry-run=client \
-            -o yaml | kubectl apply -f -
-
-        - name: Deploy to development environment
-          run: |
-            kubectl apply -f kubernetes/development
-
-        - name: Set App Ingress Host URL
-          id: set-ingress-host-address
-          run: |
-              echo "APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress -o jsonpath={$.items[0].spec.tls[0].hosts[0]})" >> $GITHUB_OUTPUT
+      uses: ./.github/workflows/deployment_workflow.yml
+      secrets:
+        keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+        keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
+        mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
+      with:
+        mongodb-uri: ${{ vars.MONGO_URI }}
+        environment: development
+        k8s-manifest-dir: kubernetes/development/
 
     # # Post deployiment testing. Github action can reach URL as it's not public facing          
     # dev-integration-testing:
@@ -255,7 +183,7 @@ jobs:
     #   steps:
     #     - name: Test URL Output using CURL and jq
     #       env:
-    #         URL: ${{needs.dev-deploy.outputs.APP_INGRESS_URL}}
+    #         URL: ${{needs.dev-deploy.outputs.application_url}}
     #       run: |
     #         echo $URL
     #         echo "-------------------------------"
@@ -264,87 +192,16 @@ jobs:
     prod-deploy:
       if: ${{ github.ref == 'refs/heads/main' }}
       needs: docker
-      runs-on: ubuntu-latest
-      environment:
-        name: production
-        url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST}}
-      outputs:
-        APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST}}
-      steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v4
+      uses: ./.github/workflows/deployment_workflow.yml
+      secrets:
+        keycloakClientSecret: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+        keycloakIssuerUrl: ${{ secrets.KEYCLOAK_ISSUER_URL }}
+        mongodbPassword: ${{ secrets.MONGO_PASSWORD }}
+      with:
+        mongodb-uri: ${{ vars.MONGO_URI }}
+        environment: production
+        k8s-manifest-dir: kubernetes/production/
 
-        # Set up kubeconfig from the GitHub Secret
-        - name: Get OIDC Token from Keycloak
-          run: |
-              TOKEN=$(curl -X POST \
-              ${{ secrets.KEYCLOAK_ISSUER_URL }}/protocol/openid-connect/token \
-              -H "Content-Type: application/x-www-form-urlencoded" \
-              -d "client_id=github-actions" \
-              -d "client_secret=${{ secrets.KEYCLOAK_CLIENT_SECRET }}" \
-              -d "grant_type=client_credentials" | jq -r '.access_token')
-              echo "generated token is: $TOKEN"
-              echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
-          
-        - name: Authenticate to Kubernetes
-          run: |
-              kubectl config set-credentials github-actions --token=$OIDC_TOKEN
-              kubectl config set-cluster labgrid --server=https://k8s-server.labgrid.net
-              kubectl config set-context labgrid --cluster=labgrid --user=github-actions
-              kubectl config use-context labgrid
-
-        # Verify kubectl is installed and check version
-        - name: Check kubectl version
-          run: kubectl version --client
-
-        - name: List pods in the cluster
-          run: kubectl get nodes
-
-        - name: Save Nginx Ingress Controller IP as a GITHUB Environment variable
-          run: |
-            echo "INGRESS_IP=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].ip}")" >> $GITHUB_ENV
-
-        - name: Replace tokens in manifest files
-          uses: cschleiden/replace-tokens@v1
-          with:
-            tokenPrefix: '_{_'
-            tokenSuffix: '_}_'
-            files: '["kubernetes/production/*.yaml"]'
-          env:
-            NAMESPACE: ${{ vars.NAMESPACE }}
-            REPLICAS: ${{ vars.REPLICAS }}
-            IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha}}
-            INGRESS_IP: ${{ env.INGRESS_IP }}
-
-        - name: Check files
-          run: |
-            cat kubernetes/production/*.yaml
-
-        - name: Create MongoDB Secret
-          run: |
-            if ! kubectl get namespace ${{ vars.NAMESPACE }} > /dev/null 2>&1; then
-              echo "Namespace ${{ vars.NAMESPACE }} does not exist. Creating..."
-              kubectl create namespace ${{ vars.NAMESPACE }}
-            else
-              echo "Namespace ${NAMESPACE} already exists."
-            fi
-
-            kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
-            --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
-            --from-literal=MONGO_USERNAME=${{ env.MONGO_USERNAME }} \
-            --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
-            --save-config \
-            --dry-run=client \
-            -o yaml | kubectl apply -f -
-
-        - name: Deploy to production environment
-          run: |
-            kubectl apply -f kubernetes/production
-
-        - name: Set App Ingress Host URL
-          id: set-ingress-host-address
-          run: |
-              echo "APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress -o jsonpath={$.items[0].spec.tls[0].hosts[0]})" >> $GITHUB_OUTPUT
 
     # # Post production testing. Github action can reach URL as it's not public facing          
     # prod-integration-testing:
@@ -355,7 +212,7 @@ jobs:
     #   steps:
     #     - name: Test URL Output using CURL and jq
     #       env:
-    #         URL: ${{needs.prod-deploy.outputs.APP_INGRESS_URL}}
+    #         URL: ${{needs.prod-deploy.outputs.application_url}}
     #       run: |
     #         echo $URL
     #         echo "-------------------------------"
